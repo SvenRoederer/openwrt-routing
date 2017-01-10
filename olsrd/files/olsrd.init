@@ -521,7 +521,7 @@ olsrd_write_loadplugin() {
 				fi
 			fi
 
-			for f in latlon_file hosts_file services_file resolv_file macs_file; do
+			for f in latlon_file hosts_file services_file resolv_file macs_file name_change_script sighup_interval; do
 				config_get $f "$cfg" $f
 			done
 
