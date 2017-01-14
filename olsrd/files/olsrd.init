@@ -8,7 +8,8 @@ SERVICE_WRITE_PID=1
 
 OLSRD_OLSRD_SCHEMA='ignore:internal config_file:internal DebugLevel=0 AllowNoInt=yes'
 OLSRD_IPCCONNECT_SCHEMA='ignore:internal Host:list Net:list2'
-OLSRD_LOADPLUGIN_SCHEMA='ignore:internal library:internal Host4:list Net4:list2 Host:list Net:list2 Host6:list Net6:list2 Ping:list redistribute:list NonOlsrIf:list name:list lat lon latlon_infile HNA:list2 hosts:list2 ipv6only:bool'
+OLSRD_LOADPLUGIN_SCHEMA='ignore:internal library:internal Host4:list Net4:list2 Host:list Net:list2 Host6:list Net6:list2 Ping:list redistribute:list NonOlsrIf:list name:list HNA:list2 hosts:list2 ipv6only:bool'
+OLSRD_LOADPLUGIN_NAMESERVICE_SCHEMA='hosts_file services_file lat lon latlon_file latlon_infile suffix name_change_script filewrite_interval'
 OLSRD_INTERFACE_SCHEMA='ignore:internal interface:internal AutoDetectChanges:bool LinkQualityMult:list2'
 OLSRD_INTERFACE_DEFAULTS_SCHEMA='AutoDetectChanges:bool'
 
@@ -142,6 +143,7 @@ olsrd_write_plparam() {
 	local option_type="$5"
 	local _option oldIFS
 
+log debug 5a: "$option_type"
 	if [ "$option_type" = bool ]; then
 		case "$value" in
 			1|on|true|enabled|yes) value=yes;;
@@ -154,7 +156,7 @@ olsrd_write_plparam() {
 		warning_invalid_value olsrd "$cfg" "$option"
 		return 1
 	fi
-
+log debug 5b
 	oldIFS="$IFS"
 	IFS='-_'
 	set -- $option
@@ -184,6 +186,7 @@ olsrd_write_plparam() {
 
 	echo -n "${N}${param}PlParam \"$option\" \"$value\""
 
+log debug 5z: $option
 	return 0
 }
 
@@ -198,13 +201,14 @@ config_update_schema() {
 	local schema
 	local cur_option
 
+log debug 7a:
 	case "$varname" in
 		*_LENGTH) return 0;;
 		*_ITEM*) return 0;;
 	esac
-
+log debug 7b:
 	eval "export -n -- \"schema=\${$schema_varname}\""
-
+log debug 7c: $schema_varname
 	for cur_option in $schema; do
 		[ "${cur_option%%[:=]*}" = "$option" ] && return 0
 	done
@@ -222,6 +226,7 @@ config_update_schema() {
 		schema_entry="$option"
 	fi
 
+log "debug 7x: schema_var: $schema_varname; schema_entry: $schema_entry"
 	append "$schema_varname" "$schema_entry"
 
 	return 0
@@ -236,12 +241,16 @@ config_write_options() {
 	[ -z "$write_func" ] && output_func=echo
 	local write_param="$4"
 
+log debug 3a: $@
+
 	local schema_entry option option_length option_type default value list_size list_item list_value i position speed oldIFS
 	local list_speed_vars="HelloInterval HelloValidityTime TcInterval TcValidityTime MidInterval MidValidityTime HnaInterval HnaValidityTime"
 
 	get_value_for_entry()
 	{
 		local schema_entry="$1"
+
+#log debug 4: $schema_entry
 
 		default="${schema_entry#*[=]}"
 		[ "$default" = "$schema_entry" ] && default=
@@ -273,7 +282,9 @@ config_write_options() {
 		esac
 	}
 
+log debug 3b: already_in_schema speed
 	already_in_schema "speed" && {
+log "debug 3b: - yes"
 		get_value_for_entry "speed"
 
 		if [ 2>/dev/null $value -gt 0 -a $value -le 20 ]; then
@@ -288,8 +299,11 @@ config_write_options() {
 		} done
 	}
 
+log debug 3c: schemas:  $schema
 	for schema_entry in $schema; do
+log debug 3c1: schema_entry : $schema_entry
 		if [ -n "$speed" ]; then		# like sven-ola freifunk firmware fff-1.7.4
+log "debug 3d: -n speed is true"
 			case "$schema_entry" in
 				HelloInterval)
 					value="$(( $speed / 2 + 1 )).0"
@@ -336,9 +350,10 @@ config_write_options() {
 
 			is_speed_var "$schema_entry" && option="$schema_entry"
 		else
+log "debug 3d: -n speed is false"
 			get_value_for_entry "$schema_entry" || continue
 		fi
-
+log debug 3e: $value
 		if [ -z "$value" ]; then
 			oldIFS="$IFS"; IFS='+'; set -- $default; IFS="$oldIFS"
 			value=$*
@@ -347,7 +362,7 @@ config_write_options() {
 		fi
 
 		[ -z "$value" ] && continue
-
+log debug 3f: $value
 		case "$option_type" in
 			list) list_size=1;;
 			list2) list_size=2;;
@@ -356,6 +371,7 @@ config_write_options() {
 		esac
 
 		if [ "$list_size" -gt 0 ]; then
+log debug 3g: write list:
 			config_get option_length "$cfg" "${option}_LENGTH"
 			if [ -n "$option_length" ]; then
 				i=1
@@ -379,6 +395,8 @@ config_write_options() {
 				[ "$position" -ne 0 ] && "$write_func" "$write_param" "$cfg" "$option" "$list_value" "$option_type"
 			fi
 		else
+log debug 3g: write value 
+log debug 3g:"$write_func" "$write_param" "$cfg" "$option" "$value" "$option_type"
 			"$write_func" "$write_param" "$cfg" "$option" "$value" "$option_type"
 		fi
 	done
@@ -494,6 +512,7 @@ olsrd_write_loadplugin() {
 	local funcname="olsrd_write_loadplugin"
 	local cfg="$1"
 	validate_varname "$cfg" || return 0
+	local library_schema
 	local ignore
 	local name
 	local suffix
@@ -514,8 +533,11 @@ olsrd_write_loadplugin() {
 		return 0
 	fi
 
+log debug 1b: "$library"
 	case "$library" in
 		olsrd_nameservice.*)
+log debug 1c: setup for nameservice
+library_schema=NAMESERVICE
 			config_get name "$cfg" name
 			[ -z "$name" ] && config_set "$cfg" name $SYSTEM_HOSTNAME
 
@@ -536,9 +558,10 @@ olsrd_write_loadplugin() {
 				fi
 			fi
 
-			for f in latlon_file hosts_file services_file resolv_file macs_file; do
-				config_get $f "$cfg" $f
-			done
+#			for f in latlon_file hosts_file services_file resolv_file macs_file name_change_script sighup_pid_file filewrite_interval sighup_interval; do
+#				config_get $f "$cfg" $f
+#log "config_get: $f; $cfg"
+#			done
 
 			[ -z "$latlon_file" ] && config_set "$cfg" latlon_file '/var/run/latlon.js'
 		;;
@@ -547,8 +570,16 @@ olsrd_write_loadplugin() {
 		;;
 	esac
 
+log debug 1w: library_schema=$library_schema
+eval library_schema=OLSRD_LOADPLUGIN_\${library_schema}_SCHEMA
+log debug 1x: library_schema=$library_schema
+eval library_schema=\${$library_schema}
+log debug 1y: library_schema=$library_schema
+
+log debug 1z: $cfg
 	echo -n "${N}LoadPlugin \"$library\"${N}{"
-	config_write_options "$OLSRD_LOADPLUGIN_SCHEMA" "$cfg" olsrd_write_plparam "${T}"
+	
+	config_write_options "$OLSRD_LOADPLUGIN_SCHEMA $library_schema" "$cfg" olsrd_write_plparam "${T}"
 	echo "${N}}"
 
 	return 0
@@ -619,15 +650,30 @@ olsrd_update_schema() {
 	local cfgt
 	local cur_varname
 
+log debug 6a: cfg: $cfg
 	config_get cfgt "$cfg" TYPE
+log debug 6b: $cfgt
 	case "$cfgt" in
 		olsrd) config_update_schema OLSRD_OLSRD_SCHEMA "$command" "$varname" "$value";;
 		IpcConnect) config_update_schema OLSRD_IPCCONNECT_SCHEMA "$command" "$varname" "$value";;
-		LoadPlugin) config_update_schema OLSRD_LOADPLUGIN_SCHEMA "$command" "$varname" "$value";;
+		LoadPlugin) 
+			config_get pluginname "$cfg" library
+			case "$pluginname" in 
+				olsrd_nameservice.so.*)
+					# do nothing; as we only load the individual schema in 
+log debug 6d: nameservice
+				;;
+				*)
+log "debug 6d: other servie (legacy)"
+					config_update_schema OLSRD_LOADPLUGIN_SCHEMA "$command" "$varname" "$value"
+				;;
+			esac
+		;;
+#		LoadPlugin) config_update_schema OLSRD_LOADPLUGIN_SCHEMA "$command" "$varname" "$value";;
 		Interface) config_update_schema OLSRD_INTERFACE_SCHEMA "$command" "$varname" "$value";;
 		InterfaceDefaults) config_update_schema OLSRD_INTERFACE_DEFAULTS_SCHEMA "$command" "$varname" "$value";;
 	esac
-
+log debug 6z
 	return 0
 }
 
