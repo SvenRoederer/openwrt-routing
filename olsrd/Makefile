@@ -208,8 +208,9 @@ upgrade_plugin_options() {
                         logger "downgrade of olsrd-mod-nameservice detected, please check your configuration"
                         return 0
                 fi
-                echo upgrading nameservice-plugin
+                echo "upgrading config ($$UCI_CONF_NAME) of nameservice-plugin to version $$PLUGIN_CURRENT_VERSION"
                 uci_set $$UCI_CONF_NAME "$$cfg" library "olsrd_nameservice.so.$${PLUGIN_CURRENT_VERSION}"
+                echo "... done"
         fi
 }
 
