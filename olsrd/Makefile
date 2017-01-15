@@ -213,16 +213,12 @@ upgrade_plugin_options() {
         fi
 }
 
-upgrade_olsrd_conf() {
-        . "$${IPKG_INSTROOT}/etc/init.d/$$1"  # get UCI_CONF_NAME variable
+for uciconfig in olsrd olsrd6; do
+        . "$${IPKG_INSTROOT}/etc/init.d/$$uciconfig"  # get UCI_CONF_NAME variable
 
         config_load $$UCI_CONF_NAME
         config_foreach upgrade_plugin_options LoadPlugin
         uci_commit $$UCI_CONF_NAME
-}
-
-for uciconfig in olsrd olsrd6; do
-        upgrade_olsrd_conf $$uciconfig
 done
 
 exit 0
