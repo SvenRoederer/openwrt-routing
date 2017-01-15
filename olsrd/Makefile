@@ -178,6 +178,56 @@ define Build/Compile
 	$(call Build/Compile/Default,libs)
 endef
 
+define Package/olsrd-mod-nameservice/postinst
+#!/bin/sh
+. "${IPKG_INSTROOT}/lib/functions.sh"
+
+PLUGIN_CURRENT_VERSION=0.4
+
+upgrade_plugin_options() {
+        local cfg=$1
+        local version
+        local value
+
+        config_get value $cfg library
+        if [ ${value:0:20} = olsrd_nameservice.so ]; then
+                #echo found nameservice
+                if [ ${value} = olsrd_nameservice.so.${PLUGIN_CURRENT_VERSION} ]; then
+                        #echo section up-to-date
+                        return 0
+                fi
+                version=${value/olsrd_nameservice.so./} # strip-off the library-name
+                major=$(echo $version | cut -d . -f 1)
+                minor=$(echo $version | cut -d . -f 2)
+                configured_ver=$((major * 1000 + $minor))
+		plugin_current_version_major=$(echo $PLUGIN_CURRENT_VERSION | cut -d . -f 1)
+		plugin_current_version_minor=$(echo $PLUGIN_CURRENT_VERSION | cut -d . -f 2)
+                current_ver=$((plugin_current_version_major *1000 + $plugin_current_version_minor))
+                if [ ${current_ver} -lt ${configured_ver} ]; then
+                        echo "downgrade of olsrd-mod-nameservice detected, please check your configuration"
+                        logger "downgrade of olsrd-mod-nameservice detected, please check your configuration"
+                        return 0
+                fi
+                echo upgrading nameservice-plugin
+                uci_set $UCI_CONF_NAME "$cfg" library "olsrd_nameservice.so.${PLUGIN_CURRENT_VERSION}"
+        fi
+}
+
+upgrade_olsrd_conf() {
+        . "${IPKG_INSTROOT}/etc/init.d/$1"  # get UCI_CONF_NAME variable
+
+        config_load $UCI_CONF_NAME
+        config_foreach upgrade_plugin_options LoadPlugin
+        uci_commit $UCI_CONF_NAME
+}
+
+for uciconfig in olsrd olsrd6; do
+        upgrade_olsrd_conf $uciconfig
+done
+
+exit 0
+endef
+
 define Package/olsrd/install
 	$(INSTALL_DIR) $(1)/lib/functions
 	$(INSTALL_DATA) ./files/olsrd.init $(1)/lib/functions/olsrd.sh
