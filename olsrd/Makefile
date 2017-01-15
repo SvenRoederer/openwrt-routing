@@ -200,8 +200,8 @@ upgrade_plugin_options() {
                 major=$(echo $version | cut -d . -f 1)
                 minor=$(echo $version | cut -d . -f 2)
                 configured_ver=$((major * 1000 + $minor))
-		plugin_current_version_major=$(echo $PLUGIN_CURRENT_VERSION | cut -d . -f 1)
-		plugin_current_version_minor=$(echo $PLUGIN_CURRENT_VERSION | cut -d . -f 2)
+                plugin_current_version_major=$(echo $PLUGIN_CURRENT_VERSION | cut -d . -f 1)
+                plugin_current_version_minor=$(echo $PLUGIN_CURRENT_VERSION | cut -d . -f 2)
                 current_ver=$((plugin_current_version_major *1000 + $plugin_current_version_minor))
                 if [ ${current_ver} -lt ${configured_ver} ]; then
                         echo "downgrade of olsrd-mod-nameservice detected, please check your configuration"
