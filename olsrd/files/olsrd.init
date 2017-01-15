@@ -74,12 +74,14 @@ system_config() {
 
 olsrd_find_config_file() {
 	local cfg="$1"
+debug "7a - $cfg"
 	validate_varname "$cfg" || return 0
-
+debug "7b"
 	config_get_bool ignore "$cfg" ignore 0
 	[ "$ignore" -ne 0 ] && return 0
+debug "7c"
 	config_get OLSRD_CONFIG_FILE "$cfg" config_file
-
+debug "7z file: OLSRD_CONFIG_FILE"
 	return 0
 }
 
@@ -252,23 +254,26 @@ debug 3a: $@
 	{
 		local schema_entry="$1"
 
-#debug 4: $schema_entry
+debug 4a: $schema_entry
 
 		default="${schema_entry#*[=]}"
 		[ "$default" = "$schema_entry" ] && default=
 		option="${schema_entry%%[=]*}"
-
+debug "4b: option: $option"
 		oldIFS="$IFS"; IFS=':'; set -- $option; IFS="$oldIFS"
 		option="$1"
 		option_type="$2"
-
+debug "4c: option: $option; type: $option_type"
 		validate_varname "$option" || return 1
+debug "4d"
 		[ -z "$option_type" ] || validate_varname "$option_type" || return 1
+debug "4e"
 		[ "$option_type" = internal ] && return 1
-
+debug "4f"
 		config_get value "$cfg" "$option"
+debug "4g: value $value"
 		[ "$option" = "speed" ] && return 1
-
+debug "4z"
 		return 0
 	}
 
@@ -355,14 +360,17 @@ debug "3d: -n speed is true"
 debug "3d: -n speed is false"
 			get_value_for_entry "$schema_entry" || continue
 		fi
-debug 3e: $value
+debug "3e: $value"
 		if [ -z "$value" ]; then
+debug "3e1: $value"
 			oldIFS="$IFS"; IFS='+'; set -- $default; IFS="$oldIFS"
+debug "3e2: $value"
 			value=$*
 		elif [ "$value" = '-' -a -n "$default" ]; then
+debug "3e3: $value"
 			continue
 		fi
-
+debug "3e4: $value"
 		[ -z "$value" ] && continue
 debug 3f: $value
 		case "$option_type" in
@@ -402,7 +410,7 @@ debug 3g:"$write_func" "$write_param" "$cfg" "$option" "$value" "$option_type"
 			"$write_func" "$write_param" "$cfg" "$option" "$value" "$option_type"
 		fi
 	done
-
+debug "3z"
 	return 0
 }
 
@@ -500,6 +508,7 @@ olsrd_write_hna6() {
 olsrd_write_loadplugin() {
 	local funcname="olsrd_write_loadplugin"
 	local cfg="$1"
+debug "1a: $funcname; $cfg"
 	validate_varname "$cfg" || return 0
 	local library_schema
 	local ignore
@@ -510,9 +519,11 @@ olsrd_write_loadplugin() {
 	local latlon_infile
 
 	config_get_bool ignore "$cfg" ignore 0
+debug "1b - ignore is $ignore"
 	[ "$ignore" -ne 0 ] && return 0
 
 	config_get library "$cfg" library
+debug 1c: "$library"
 	if ! validate_olsrd_option "$library"; then
 		warning_invalid_value olsrd "$cfg" "library"
 		return 0
@@ -522,10 +533,10 @@ olsrd_write_loadplugin() {
 		return 0
 	fi
 
-debug 1b: "$library"
+debug 1d
 	case "$library" in
 		olsrd_nameservice.*)
-debug 1c: setup for nameservice
+debug 1e: setup for nameservice
 library_schema=NAMESERVICE
 			config_get name "$cfg" name
 			[ -z "$name" ] && config_set "$cfg" name $SYSTEM_HOSTNAME
@@ -559,22 +570,23 @@ library_schema=NAMESERVICE
 		;;
 	esac
 
-debug 1w: library_schema=$library_schema
+debug 1v: library_schema=$library_schema
 eval library_schema=OLSRD_LOADPLUGIN_\${library_schema}_SCHEMA
-debug 1x: library_schema=$library_schema
+debug 1w: library_schema=$library_schema
 eval library_schema=\${$library_schema}
-debug 1y: library_schema=$library_schema
+debug 1x: library_schema=$library_schema
 
-debug 1z: $cfg
+debug 1y: $cfg
 	echo -n "${N}LoadPlugin \"$library\"${N}{"
 	
 	config_write_options "$OLSRD_LOADPLUGIN_SCHEMA $library_schema" "$cfg" olsrd_write_plparam "${T}"
 	echo "${N}}"
-
+debug 1z: $cfg
 	return 0
 }
 
 olsrd_write_interface() {
+debug "9a"
 	local funcname="olsrd_write_interface"
 	local cfg="$1"
 	validate_varname "$cfg" || return 0
@@ -583,12 +595,13 @@ olsrd_write_interface() {
 	local interface
 	local ifnames
 
+debug "9b"
 	config_get_bool ignore "$cfg" ignore 0
 	[ "$ignore" -ne 0 ] && return 0
-
+debug "9c"
 	ifnames=
 	config_get interfaces "$cfg" interface
-
+debug "9d"
 	for interface in $interfaces; do
 		if validate_varname "$interface"; then
 			if network_get_device IFNAME "$interface"; then
@@ -614,7 +627,7 @@ olsrd_write_interface() {
 	config_write_options "$OLSRD_INTERFACE_SCHEMA" "$cfg" olsrd_write_option "${T}"
 	echo "${N}}"
 	INTERFACES_COUNT=$((INTERFACES_COUNT + 1))
-
+debug "9z"
 	return 0
 }
 
@@ -679,10 +692,13 @@ olsrd_write_config() {
 	[ "$HNA6_COUNT" -gt 0 ] && echo "${N}}"
 	config_foreach olsrd_write_loadplugin LoadPlugin
 	INTERFACES_COUNT=0
+debug "8g"
 	config_foreach olsrd_write_interface_defaults InterfaceDefaults
+debug "8h"
 	config_foreach olsrd_write_interface Interface
+debug "8i"
 	echo
-
+debug "8z"
 	return 0
 }
 
@@ -802,6 +818,7 @@ olsrd_setup_smartgw_rules() {
 }
 
 start() {
+debug "start()a"
 	SYSTEM_HOSTNAME=
 	SYSTEM_LAT=
 	SYSTEM_LON=
@@ -816,24 +833,31 @@ start() {
 		olsrd_update_schema "list" "$@"
 	}
 
+debug "start()b"
 	. /lib/functions/network.sh
 
+debug "start()c - UCI_CONF_NAME: $UCI_CONF_NAME"
 	config_load $UCI_CONF_NAME
+debug "start()d"
 	reset_cb
-
+debug "start()e"
 	OLSRD_CONFIG_FILE=
 	config_foreach olsrd_find_config_file olsrd
-
+debug "start()f"
 	if [ -z "$OLSRD_CONFIG_FILE" ]; then
 		mkdir -p -- /var/etc/
+debug "start()g CONF_NAME: $UCI_CONF_NAME"
 		olsrd_write_config > /var/etc/$UCI_CONF_NAME.conf || return 1
+debug "start()h CONF_NAME: $UCI_CONF_NAME"
 		if [ "$INTERFACES_COUNT" -gt 0 -a "$OLSRD_COUNT" -gt 0 ]; then
+debug "start()i"
 			OLSRD_CONFIG_FILE=/var/etc/$UCI_CONF_NAME.conf
+debug "start()j"
 		fi
+debug "start()k"
 	fi
-
+debug "start()l configfile: $OLSRD_CONFIG_FILE"
 	[ -z "$OLSRD_CONFIG_FILE" ] && return 1
-
 	SERVICE_PID_FILE="$PID"
 	if service_check /usr/sbin/olsrd; then
 		error "there is already an instance of $UCI_CONF_NAME running (pid: '$(cat $PID)'), not starting."
