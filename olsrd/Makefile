@@ -182,7 +182,8 @@ define Package/olsrd-mod-nameservice/postinst
 #!/bin/sh
 . "$${IPKG_INSTROOT}/lib/functions.sh"
 
-PLUGIN_CURRENT_VERSION=0.4
+# gets lookup up on compiletime and path is stripped-off
+PLUGIN_CURRENT_VERSION=$(subst $(PKG_BUILD_DIR)/lib/nameservice/olsrd_nameservice.so.,,$(wildcard $(PKG_BUILD_DIR)/lib/nameservice/olsrd_nameservice.so.*))
 
 upgrade_plugin_options() {
         local cfg=$$1
