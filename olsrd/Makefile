@@ -1,5 +1,5 @@
 # 
-# Copyright (C) 2009-2016 OpenWrt.org
+# Copyright (C) 2009-2012 OpenWrt.org
 #
 # This is free software, licensed under the GNU General Public License v2.
 # See /LICENSE for more information.
@@ -8,17 +8,14 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=olsrd
-PKG_VERSION:=0.9.5
-PKG_RELEASE=$(PKG_SOURCE_VERSION)
+PKG_VERSION:=0.9.0.3
+PKG_RELEASE:=1
 
-PKG_SOURCE_PROTO:=git
-PKG_SOURCE_URL:=https://github.com/OLSR/olsrd.git
-PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
-PKG_SOURCE_VERSION:=v0.9.5
-PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_SOURCE_VERSION).tar.gz
-PKG_MIRROR_MD5SUM:=
+PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
+PKG_SOURCE_URL:=http://www.olsr.org/releases/0.9
 
-PKG_BUILD_PARALLEL:=0
+PKG_MD5SUM:=fa5cf15c29c7ebd9b8425267676c7865
+PKG_BUILD_PARALLEL:=1
 PKG_LICENSE:=BSD-3-Clause
 
 include $(INCLUDE_DIR)/package.mk
@@ -87,12 +84,6 @@ define Package/olsrd-mod-jsoninfo
   TITLE:=Small informative plugin with JSON output
 endef
 
-define Package/olsrd-mod-netjson
-  $(call Package/olsrd/template)
-  DEPENDS:=olsrd
-  TITLE:=netjson plugin with JSON output
-endef
-
 define Package/olsrd-mod-mdns
   $(call Package/olsrd/template)
   DEPENDS:=olsrd
@@ -119,7 +110,7 @@ endef
 
 define Package/olsrd-mod-pud
   $(call Package/olsrd/template)
-  DEPENDS:=olsrd +libgps +ncurses
+  DEPENDS:=olsrd
   TITLE:=Position Update Distribution plugin
 endef
 
@@ -171,7 +162,7 @@ MAKE_FLAGS+= \
 	DESTDIR="$(PKG_INSTALL_DIR)" \
 	STRIP="true" \
 	INSTALL_LIB="true" \
-	SUBDIRS="arprefresh bmf dot_draw dyn_gw dyn_gw_plain httpinfo jsoninfo netjson mdns nameservice p2pd pgraph pud quagga secure sgwdynspeed txtinfo watchdog"
+	SUBDIRS="arprefresh bmf dot_draw dyn_gw dyn_gw_plain httpinfo jsoninfo mdns nameservice p2pd pgraph pud quagga secure sgwdynspeed txtinfo watchdog"
 
 define Build/Compile
 	$(call Build/Compile/Default,all)
@@ -226,11 +217,6 @@ endef
 define Package/olsrd-mod-jsoninfo/install
 	$(INSTALL_DIR) $(1)/usr/lib
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/lib/jsoninfo/olsrd_jsoninfo.so.* $(1)/usr/lib/
-endef
-
-define Package/olsrd-mod-netjson/install
-	$(INSTALL_DIR) $(1)/usr/lib
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/lib/netjson/olsrd_netjson.so.* $(1)/usr/lib/
 endef
 
 define Package/olsrd-mod-mdns/install
@@ -299,7 +285,6 @@ $(eval $(call BuildPackage,olsrd-mod-dyn-gw))
 $(eval $(call BuildPackage,olsrd-mod-dyn-gw-plain))
 $(eval $(call BuildPackage,olsrd-mod-httpinfo))
 $(eval $(call BuildPackage,olsrd-mod-jsoninfo))
-$(eval $(call BuildPackage,olsrd-mod-netjson))
 $(eval $(call BuildPackage,olsrd-mod-mdns))
 $(eval $(call BuildPackage,olsrd-mod-nameservice))
 $(eval $(call BuildPackage,olsrd-mod-p2pd))
